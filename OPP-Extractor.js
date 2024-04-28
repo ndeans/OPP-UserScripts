@@ -213,6 +213,7 @@ function processPage(doc) {
     return post_data;
 }
 
+
 function finish() {
     console.log("removing session variables.");
     sessionStorage.removeItem("topic-data");
@@ -221,6 +222,23 @@ function finish() {
 }
 
 // *****************************************************************************************************************
+
+
+function report() {
+    var w_report;
+    window.name = "report";
+    w_report = window.open("","report","");
+    w_report.document.write("<html><head><title>Report</title>");
+    w_report.document.write("<style type='text/css'>");
+    w_report.document.write("body{font-family:Verdana;font-size:10pt}");
+    w_report.document.write("h2{font-size:12pt}.post{}");
+    w_report.document.write(".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}");
+    w_report.document.write("</style>");
+    w_report.document.write("</head><body>");
+    w_report.document.write("OPP-Extractor initialized.");
+    w_report.document.write("</body></html>");
+    window.stop();
+}
 
 function headerHTML(report_title) {
     var html;
