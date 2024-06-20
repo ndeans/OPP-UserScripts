@@ -6,7 +6,7 @@
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/t-*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=onepoliticalplaza.com
-// @grant        none
+// @grant        GM.xmlHttpRequest
 // ==/UserScript==
 
 var base_url = "https://www.onepoliticalplaza.com/t-";
@@ -134,6 +134,9 @@ function extractFromPage() {
             }
             if (report_type == 2) {
                 printNoQuotes();
+            }
+            if (report_type == 3) {
+
             }
             finish();
         }
@@ -278,6 +281,20 @@ function printNoQuotes(){
     console.log("printNoQuotes() : function check...");
     post_data = JSON.parse(sessionStorage.getItem("post-data"));
     if (post_data) {
+        GM.xmlHttpRequest({
+            method: 'GET',
+            url: "http://localhost:8080/JAXRS-EX-06_mod/opp/version",
+            onload: function(response) {
+                if(response.status >= 200 && response.status < 400) {
+                    console.log('Response received:', response.responseText);
+                } else {
+                    console.error('Error during GET request:', response.status);
+                }
+            },
+            onerror: function(response) {
+                console.error('Network error:', response.status);
+            }
+        });
         post_data.forEach(function(post){
             w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
             w_report.document.write("<a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
@@ -287,5 +304,11 @@ function printNoQuotes(){
     }
     w_report.document.write("</body></html>");
     window.stop();
+}
+
+function persistStandard() {
+    // const endpoint = 'http://localhost:8080/JAXRS-EX-06_mod/opp/version';
+    // fetch(endpoint).then(response => response.json()).then(data => {console.log(data);}).catch(error => {console.error(error)});
+    // post_data = JSON.parse(sessionStorage.getItem("post-data"));
 }
 
