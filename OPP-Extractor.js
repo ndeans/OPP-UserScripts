@@ -135,9 +135,6 @@ function extractFromPage() {
             if (report_type == 2) {
                 printNoQuotes();
             }
-            if (report_type == 3) {
-
-            }
             finish();
         }
     }
@@ -280,21 +277,55 @@ function printNoQuotes(){
     w_report.document.write(headerHTML("topic-" + topic_data.id));
     console.log("printNoQuotes() : function check...");
     post_data = JSON.parse(sessionStorage.getItem("post-data"));
+
     if (post_data) {
+
         GM.xmlHttpRequest({
             method: 'GET',
-            url: "http://localhost:8080/JAXRS-EX-06_mod/opp/version",
+            url: 'http://localhost:8080/JAXRS-EX-06_mod/opp/version',
             onload: function(response) {
-                if(response.status >= 200 && response.status < 400) {
+                if (response.status >= 200 && response.status < 400) {
                     console.log('Response received:', response.responseText);
                 } else {
-                    console.error('Error during GET request:', response.status);
+                    console.error('Error during GET request: ', response.status);
                 }
             },
             onerror: function(response) {
-                console.error('Network error:', response.status);
+                console.error('Network error',response.status);
             }
         });
+
+        GM.xmlHttpRequest({
+            method: 'POST',
+            url: 'http://localhost:8080/JAXRS-EX-06_mod/opp/upload',
+            data: JSON.stringify(post_data),
+            headers: {'Content-Type': 'application/json'},
+            onload: function(response) {
+                if (response.status >= 200 && response.status < 400) {
+                    console.log('Response received:', response.responseText);
+                } else {
+                    console.error('Error during GET request: ', response.status);
+                }
+            },
+            onerror: function(response) {
+                console.error('Network error',response.status);
+            }
+        });
+
+        let xhr_js1 = new XMLHttpRequest();
+        xhr_js1.open('GET','http://localhost:8080/JAXRS-EX-06_mod/opp/version');
+        xhr_js1.send();
+
+        let xhr_js2 = new XMLHttpRequest();
+        xhr_js2.open('POST', 'http://localhost:8080/JAXRS-EX-06_mod/opp/upload', false);
+        xhr_js2.setRequestHeader('Content-Type','application/json');
+
+        xhr_js2.onreadystatechange = () => {
+            if (xhr_js2.readyState == XMLHttpRequest.DONE && xhr_js2.status === 200) {
+            }
+        };
+        xhr_js2.send(JSON.stringify(post_data));
+
         post_data.forEach(function(post){
             w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
             w_report.document.write("<a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
@@ -306,9 +337,5 @@ function printNoQuotes(){
     window.stop();
 }
 
-function persistStandard() {
-    // const endpoint = 'http://localhost:8080/JAXRS-EX-06_mod/opp/version';
-    // fetch(endpoint).then(response => response.json()).then(data => {console.log(data);}).catch(error => {console.error(error)});
-    // post_data = JSON.parse(sessionStorage.getItem("post-data"));
-}
+// ********************************************************************************************** END OF FILE **************
 
