@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.1
+// @version      0.3
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/t-*
@@ -13,7 +13,6 @@ var base_url = "https://www.onepoliticalplaza.com/t-";
 var report_type = 0;
 var topic_number = 0;
 var current_page = 0;
-
 var job_data;
 var topic_data;
 var page_data = [];
@@ -108,13 +107,13 @@ function extractFromPage() {
     }
 
     if (current_page <= topic_data.page_count ) {
-    // extract page if there is a session variable for it
+        // extract page if there is a session variable for it
         if (JSON.parse(sessionStorage.getItem("post-data"))) {
             post_data = JSON.parse(sessionStorage.getItem("post-data"));
         }
         processPage(document);
         sessionStorage.setItem("post-data", JSON.stringify(post_data));
-    // redirect if last page
+        // redirect if last page
         if (current_page < topic_data.page_count) {
             var new_page = (current_page + 1);
             let address = base_url + topic_number + "-" + new_page + ".html";
@@ -122,7 +121,7 @@ function extractFromPage() {
             window.name = "site";
             window.open(address, "site", false);
         }
-    // exit script
+        // exit script
         else {
             console.log("no more pages.");
             console.log("extractFromPage(): post_data size = " + post_data.length);
@@ -135,7 +134,7 @@ function extractFromPage() {
             if (report_type == 2) {
                 printNoQuotes();
             }
-            finish();
+            // finish();
         }
     }
 }
@@ -198,7 +197,7 @@ function processPage(doc) {
                     post_text = post_text + "<br>" + post_blocks[k].nodeValue;
                     // check word list and increment scorekeeper on matches.
                     if (k < post_blocks.length-1) { post_text = post_text + "<br>---<br>"; }
-               }
+                }
             }
 
             var post_record = {"id": post_id, "author": post_author,"head": post_time, "link": post_link, "text": post_text, "html": post_content};
@@ -220,21 +219,22 @@ function finish() {
 
 // *****************************************************************************************************************
 
+function headerHTML2(report_title) {
+    var html;
+    html = "<html><head><title>" + report_title + "</title>";
+    html = html + "<style type='text/css'>";
+    html = html + "body{font-family:Verdana;font-size:10pt}";
+    html = html + "h2{font-size:12pt}.post{}";
+    html = html + ".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}";
+    html = html + "</style>";
+    html = html + "</head><body><form name='Submit' onSubmit='return sendData()'>";
+    html = html + "<h2>" + topic_data.id + ": " + topic_data.title + "  ( " + topic_data.page_count + " pages )</h2><hr>";
+    return html;
+}
 
-function report() {
-    var w_report;
-    window.name = "report";
-    w_report = window.open("","report","");
-    w_report.document.write("<html><head><title>Report</title>");
-    w_report.document.write("<style type='text/css'>");
-    w_report.document.write("body{font-family:Verdana;font-size:10pt}");
-    w_report.document.write("h2{font-size:12pt}.post{}");
-    w_report.document.write(".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}");
-    w_report.document.write("</style>");
-    w_report.document.write("</head><body>");
-    w_report.document.write("OPP-Extractor initialized.");
-    w_report.document.write("</body></html>");
-    window.stop();
+function sendData() {
+    alert("hello - this is a test.");
+    finish();
 }
 
 function headerHTML(report_title) {
@@ -245,7 +245,30 @@ function headerHTML(report_title) {
     html = html + "h2{font-size:12pt}.post{}";
     html = html + ".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}";
     html = html + "</style>";
-    html = html + "</head><body>";
+
+    /* html = html + "<script src='https://raw.githubusercontent.com/ndeans/OPP-UserScripts/master/testscript.js '>\n"; */
+
+
+    html = html + "<script type='text/javascript'>\n";
+    html = html + "function sendData(){\n";
+    html = html + "    alert('hello');\n";
+    html = html + "    var post_collection_out = [];\n";
+    html = html + "    var post_collection_in = document.getElementsByClassName('post');\n";
+    html = html + "    alert('posts in report... ' + post_collection_in.length);\n";
+    html = html + "";
+    html = html + "";
+    html = html + "    for (i=0; i < post_collection_in.length; i++ ) {\n";
+    html = html + "        if (post_collection_in[i].getElementsByName('selected')){\n";
+    html = html + "//          post_collection_out.push(post_data[i])\n";
+    html = html + "        }\n";
+    html = html + "    }\n";
+    html = html + "";
+    html = html + "    console.log('removing session variables.');\n";
+    html = html + "    sessionStorage.removeItem('topic-data');\n";
+    html = html + "    sessionStorage.removeItem('post-data');\n";
+    html = html + "    sessionStorage.removeItem('job-data');\n";
+    html = html + "}</script>\n";
+    html = html + "</head><body><form name='Submit' onSubmit='return sendData()'>";
     html = html + "<h2>" + topic_data.id + ": " + topic_data.title + "  ( " + topic_data.page_count + " pages )</h2><hr>";
     return html;
 }
@@ -261,19 +284,22 @@ function printStandard() {
     if (post_data) {
         post_data.forEach(function(post){
             w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
-            w_report.document.write("<a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
+            w_report.document.write("<input type='checkbox' name='selected' value='false'>&nbsp");
+            w_report.document.write("<a name='plink' href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
             w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
             w_report.document.write("<div class='post_body'>" + post.html + "</div></div><hr>");
         });
     }
-    w_report.document.write("</body></html>");
-    window.stop();
+    w_report.document.write("<input name='Submit' type='submit' value='Update'></form></body></html>");
+    window.stop();Webstorm
 }
+
+
 
 function printNoQuotes(){
     var w_report;
     window.name = "report";
-    w_report = window.open("","report","");
+    w_report = window.open("","","");
     w_report.document.write(headerHTML("topic-" + topic_data.id));
     console.log("printNoQuotes() : function check...");
     post_data = JSON.parse(sessionStorage.getItem("post-data"));
@@ -281,23 +307,10 @@ function printNoQuotes(){
     if (post_data) {
 
         GM.xmlHttpRequest({
-            method: 'GET',
-            url: 'http://localhost:8080/JAXRS-EX-06_mod/opp/version',
-            onload: function(response) {
-                if (response.status >= 200 && response.status < 400) {
-                    console.log('Response received:', response.responseText);
-                } else {
-                    console.error('Error during GET request: ', response.status);
-                }
-            },
-            onerror: function(response) {
-                console.error('Network error',response.status);
-            }
-        });
-
-        GM.xmlHttpRequest({
             method: 'POST',
-            url: 'http://localhost:8080/JAXRS-EX-06_mod/opp/upload',
+            // url: 'http://localhost:1880/websvc',
+            // url: 'http://localhost:8080/JAXRS-EX-06_mod/opp/upload',
+            url: 'http://localhost:8080/Raven-Jakarta/opp/upload',
             data: JSON.stringify(post_data),
             headers: {'Content-Type': 'application/json'},
             onload: function(response) {
@@ -312,30 +325,13 @@ function printNoQuotes(){
             }
         });
 
-        let xhr_js1 = new XMLHttpRequest();
-        xhr_js1.open('GET','http://localhost:8080/JAXRS-EX-06_mod/opp/version');
-        xhr_js1.send();
-
-        let xhr_js2 = new XMLHttpRequest();
-        xhr_js2.open('POST', 'http://localhost:8080/JAXRS-EX-06_mod/opp/upload', false);
-        xhr_js2.setRequestHeader('Content-Type','application/json');
-
-        xhr_js2.onreadystatechange = () => {
-            if (xhr_js2.readyState == XMLHttpRequest.DONE && xhr_js2.status === 200) {
-            }
-        };
-        xhr_js2.send(JSON.stringify(post_data));
-
         post_data.forEach(function(post){
             w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
+            w_report.document.write("<input type='checkbox' name='selected' value='true'>&nbsp");
             w_report.document.write("<a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
             w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
             w_report.document.write("<div class='post_body'>" + post.text + "</div></div><hr>");
         });
     }
-    w_report.document.write("</body></html>");
-    window.stop();
 }
-
 // ********************************************************************************************** END OF FILE **************
-
