@@ -246,22 +246,27 @@ function headerHTML(report_title) {
 
     html = html + "<script type='text/javascript'>\n";
     html = html + "function sendData(){\n";
+
     html = html + "    alert('hello');\n";
-    html = html + "    var post_collection_out = [];\n";
-    html = html + "    var post_collection_in = document.getElementsByClassName('post');\n";
-    html = html + "    alert('posts in report... ' + post_collection_in.length);\n";
-    html = html + "";
-    html = html + "";
-    html = html + "    for (i=0; i < post_collection_in.length; i++ ) {\n";
-    html = html + "        if (post_collection_in[i].getElementsByName('selected')){\n";
-    html = html + "//          post_collection_out.push(post_data[i])\n";
-    html = html + "        }\n";
-    html = html + "    }\n";
-    html = html + "";
+
+    html = html + "    var selectors = document.getElementsByClassName('selected');\n";
+    html = html + "    var post_data = JSON.parse(sessionStorage.getItem('post-data')); \n";
+    html = html + "    var selected_posts = [];\n";
+    html = html + "    alert('posts in session... ' + post_data.length + ', checks in report... ' + selectors.length);\n";
+
+    html = html + "    var j = 0; \n";
+    html = html + "    for (var i = 0; i < selectors.length; i++ ) { \n";
+    html = html + "        if (selectors[i].checked){\n";
+    html = html + "            console.log('post is selected'); j++; \n";
+    html = html + "        } \n";
+    html = html + "    } \n";
+    html = html + "    alert('selected posts... ' + j);\n";
+
     html = html + "    console.log('removing session variables.');\n";
     html = html + "    sessionStorage.removeItem('topic-data');\n";
     html = html + "    sessionStorage.removeItem('post-data');\n";
     html = html + "    sessionStorage.removeItem('job-data');\n";
+
     html = html + "}</script>\n";
     html = html + "</head><body><form name='Submit' onSubmit='return sendData()'>";
     html = html + "<h2>" + topic_data.id + ": " + topic_data.title + "  ( " + topic_data.page_count + " pages )</h2><hr>";
@@ -272,6 +277,7 @@ function headerHTML(report_title) {
 function printStandard() {
     var w_report;
     window.name = "report";
+    // w_report = window.open("http://localhost:8000/Test1.html");
     w_report = window.open("","report","");
     w_report.document.write(headerHTML("topic-" + topic_data.id));
     console.log("printStandard() : function check...");
@@ -279,27 +285,35 @@ function printStandard() {
     if (post_data) {
         post_data.forEach(function(post){
             w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
-            w_report.document.write("<input type='checkbox' name='selected' value='false'>&nbsp");
+            w_report.document.write("<input type='checkbox' class='selected' value='false'>&nbsp");
             w_report.document.write("<a name='plink' href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
             w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
             w_report.document.write("<div class='post_body'>" + post.html + "</div></div><hr>");
         });
+        w_report.document.write("<input name='Submit' type='submit' value='Update'></form></body></html>");
     }
-    w_report.document.write("<input name='Submit' type='submit' value='Update'></form></body></html>");
-    window.stop();Webstorm
+    w_report.document.close();
+    window.stop();
 }
-
 
 
 function printNoQuotes(){
     var w_report;
     window.name = "report";
-    w_report = window.open("","","");
+    w_report = window.open("","report","");
     w_report.document.write(headerHTML("topic-" + topic_data.id));
     console.log("printNoQuotes() : function check...");
     post_data = JSON.parse(sessionStorage.getItem("post-data"));
 
     if (post_data) {
+        post_data.forEach(function(post){
+            w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
+            w_report.document.write("<input type='checkbox' class='selected' value='true'>&nbsp");
+            w_report.document.write("<a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
+            w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
+            w_report.document.write("<div class='post_body'>" + post.text + "</div></div><hr>");
+        });
+        w_report.document.write("<input name='Submit' type='submit' value='Update'></form></body></html>");
 
         GM.xmlHttpRequest({
             method: 'POST',
@@ -312,21 +326,15 @@ function printNoQuotes(){
                 if (response.status >= 200 && response.status < 400) {
                     console.log('Response received:', response.responseText);
                 } else {
-                    console.error('Error during GET request: ', response.status);
+                    console.error('Error during POST request: ', response.status);
                 }
             },
             onerror: function(response) {
                 console.error('Network error',response.status);
             }
         });
-
-        post_data.forEach(function(post){
-            w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
-            w_report.document.write("<input type='checkbox' name='selected' value='true'>&nbsp");
-            w_report.document.write("<a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
-            w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
-            w_report.document.write("<div class='post_body'>" + post.text + "</div></div><hr>");
-        });
     }
+    window.stop();
 }
+
 // ********************************************************************************************** END OF FILE **************
