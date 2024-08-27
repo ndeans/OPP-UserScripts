@@ -46,17 +46,17 @@ class Scraper {
     mBox.style.marginLeft = "auto";
     mBox.style.marginRight = "auto";
 
-    const pageCounterEl = document.createElement("div");
-    pageCounterEl.style.backgroundColor = "#FFF";
-    pageCounterEl.style.color = "#000";
-    pageCounterEl.style.height = "40px";
-    pageCounterEl.style.width = "40px";
-    pageCounterEl.textContent = "0";
-    pageCounterEl.style.display = "flex";
-    pageCounterEl.style.justifyContent = "center";
-    pageCounterEl.style.alignItems = "center";
+    this.postCounterEl = document.createElement("div");
+    this.postCounterEl.style.backgroundColor = "#FFF";
+    this.postCounterEl.style.color = "#000";
+    this.postCounterEl.style.height = "40px";
+    this.postCounterEl.style.width = "40px";
+    this.postCounterEl.textContent = "0";
+    this.postCounterEl.style.display = "flex";
+    this.postCounterEl.style.justifyContent = "center";
+    this.postCounterEl.style.alignItems = "center";
 
-    mBox.appendChild(pageCounterEl);
+    mBox.appendChild(this.postCounterEl);
 
     this.overlay = mBox;
     document.body.appendChild(this.overlay);
@@ -129,8 +129,9 @@ class Scraper {
     const postsData = [];
 
     for (let post of posts) {
-      let postData = JSON.stringify(post.innerHTML);
-      console.log(postData);
+      let postData = post.innerHTML;
+      //let postData = JSON.stringify(post.innerHTML);
+      //console.log(postData);
       postsData.push(postData);
     }
     this.savePosts(postsData);
@@ -147,7 +148,9 @@ class Scraper {
       nextBtn.click();
     } else {
       this.toggleScript();
-      makeCall();
+      this.postCounterEl.innerHTML = this.state.posts.length;
+
+      //this.submitSelection();
     }
   }
 
@@ -174,7 +177,7 @@ class Scraper {
     } catch (error) {
       console.error("Fetch Failed");
       console.error(error);
-      return
+      return;
     }
 
     try {
@@ -202,9 +205,8 @@ class Scraper {
       } else if (event.key === "5" && event.altKey) {
         console.info("KeyControl: Clear Data");
         this.resetState();
+        this.onLight.style.backgroundColor = "red";
       }
     });
   };
 }
-
-const scraper = new Scraper();
