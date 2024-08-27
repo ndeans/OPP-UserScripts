@@ -2,7 +2,8 @@ class Scraper {
   constructor() {
     this.state = {};
     this.onLight = null;
-    this.messageBox = null;
+    this.overlay = null;
+    this.fetchURL = "http://vortex.lan:8080/Raven-Jakarta/opp/upload";
 
     this.init();
   }
@@ -10,7 +11,7 @@ class Scraper {
   init() {
     this.loadState();
     this.buildOnLight();
-    this.buildMessageBox();
+    this.buildOverlay();
     this.addKeyControls();
 
     if (this.state.active) {
@@ -30,7 +31,7 @@ class Scraper {
     document.body.appendChild(this.onLight);
   }
 
-  buildMessageBox() {
+  buildOverlay() {
     const mBox = document.createElement("div");
     mBox.style.top = "0";
     mBox.style.left = "0";
@@ -57,15 +58,15 @@ class Scraper {
 
     mBox.appendChild(pageCounterEl);
 
-    this.messageBox = mBox;
-    document.body.appendChild(this.messageBox);
+    this.overlay = mBox;
+    document.body.appendChild(this.overlay);
   }
 
-  toggleMessageBox() {
-    if (this.messageBox.style.display === "none") {
-      this.messageBox.style.display = "block";
+  toggleOverlay() {
+    if (this.overlay.style.display === "none") {
+      this.overlay.style.display = "block";
     } else {
-      this.messageBox.style.display = "none";
+      this.overlay.style.display = "none";
     }
   }
 
@@ -118,24 +119,6 @@ class Scraper {
     this.saveState();
   }
 
-  addKeyControls = () => {
-    document.addEventListener("keyup", (event) => {
-      if (event.key === "1" && event.altKey) {
-        console.info("KeyControl: Toggle Message Box");
-        this.toggleMessageBox();
-      } else if (event.key === "2" && event.altKey) {
-        console.info("KeyControl: Toggle Script");
-        this.toggleScript();
-      } else if (event.key === "3" && event.altKey) {
-        console.info("KeyControl: Toggle Script");
-        this.scrapePosts();
-      } else if (event.key === "5" && event.altKey) {
-        console.info("KeyControl: Clear Data");
-        this.resetState();
-      }
-    });
-  };
-
   scrapePosts() {
     if (!this.state.active) {
       console.info("Scraper Script Inactive");
@@ -167,36 +150,61 @@ class Scraper {
       makeCall();
     }
   }
+
+  // will eventually submit the selected posts to webservice
+  async submitSelection() {
+    let headers = new Headers({
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "Access-Control-Allow-Origin": "*",
+    });
+
+    let options = {
+      method: "POST",
+      headers: headers,
+      mode: "cors",
+      body: JSON.stringify({ stuff: "Things" }),
+    };
+
+    let response = undefined;
+
+    try {
+      response = await fetch(this.fetchURL, options);
+      console.info("Fetch Successful");
+    } catch (error) {
+      console.error("Fetch Failed");
+      console.error(error);
+      return
+    }
+
+    try {
+      console.info("Parsing response data...");
+      let data = response.text();
+      console.info("Parsing succeeded");
+      console.log(data);
+    } catch (error) {
+      console.error("Parsing failed");
+      console.error(error);
+    }
+  }
+
+  addKeyControls = () => {
+    document.addEventListener("keyup", (event) => {
+      if (event.key === "1" && event.altKey) {
+        console.info("KeyControl: Toggle Overlay");
+        this.toggleOverlay();
+      } else if (event.key === "2" && event.altKey) {
+        console.info("KeyControl: Toggle Script");
+        this.toggleScript();
+      } else if (event.key === "3" && event.altKey) {
+        console.info("KeyControl: Start Scrape");
+        this.scrapePosts();
+      } else if (event.key === "5" && event.altKey) {
+        console.info("KeyControl: Clear Data");
+        this.resetState();
+      }
+    });
+  };
 }
 
 const scraper = new Scraper();
-
-
-async function makeCall() {
-  let url = "http://vortex.lan:8080/Raven-Jakarta/opp/upload";
-
-  let headers = new Headers({
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-  })
-
-  let options = {
-    method: 'POST',
-    headers: headers,
-    mode: 'cors',
-    // mode: 'no-cors',
-    body: JSON.stringify({stuff: "Things"}),
-  };
-
-  try {
-    let response = await fetch( url, options );
-    let data = response.text();
-    console.log( data );
-
-  } catch( error ) {
-
-    console.error( error );
-  }
-
-}
