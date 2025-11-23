@@ -11,7 +11,13 @@ Since the site has a navigation control, involving HREF links that specifies amo
 
 The object here was to just get it working... which it does. I have not spent the time to refactor tp make the code exemplary.  
 
+---
+
 6/3/2024 - Added a new script... OPP-Extractor. This is a complete rebuild of the previous script. At this point, OPP-Extractor.js is the valid script the previous scripts are no longer viable.
+
+11/22/25 - Chrome updates causing scripts to break...
+I've been running version 7 of the script successfully for the past year. So, I need to make fixes for a version 8.
+
 
 
 
