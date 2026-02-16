@@ -1,0 +1,76 @@
+OPP-Extractor 0.7 Analysis
+
+Analyzed file: OPP-Extractor-0.7.user.js
+Requested name: OPP-Extract-0.7.user.js (appears to refer to this same script version)
+
+Overview
+- This userscript runs on OnePoliticalPlaza topic pages (`https://www.onepoliticalplaza.com/t-*`).
+- It extracts posts from all pages in a topic, stores results in `sessionStorage`, then opens a report window and optionally uploads JSON to an API endpoint.
+- Extraction is keyboard-triggered:
+  - `F2` -> report type 1 (`printStandard`)
+  - `F3` -> report type 2 (`printStandardForm`)
+
+High-level Flow
+1. Script initializes and waits for `DOMContentLoaded` (or immediate run if document already ready).
+2. On F2/F3:
+  - Parses topic/page from current URL.
+  - Stores `topic-data` and `job-data` in `sessionStorage`.
+  - Redirects/open first topic page (`.../t-<topic>-1.html`) in same named window.
+3. On each loaded page while `topic-data` exists:
+  - Extracts metadata (title, page count) on page 1.
+  - Extracts post records from page DOM.
+  - Appends records to cumulative `post-data` in `sessionStorage`.
+  - Navigates to next page until final page.
+4. Final page:
+  - Builds `export_data` object with topic and collected posts.
+  - Renders selected report mode.
+  - For standard/no-quotes paths, sends POST to `http://vortex.lan:8080/Raven/api/upload`.
+
+Data Model
+- `topic_data`: `{ id, title, page_count, report-type }`
+- `job_data`: `{ topic-id, report_type }`
+- `post_record`: `{ id, author, head, link, text, html }`
+- `export_data`: `{ topic_id, topic_title, report_type, post_data }`
+
+Key Functions
+- `checkStatus()`
+  - Gatekeeper after page load; only extracts when `topic-data` exists.
+- `initiateExtraction()`
+  - Initializes session variables and starts from page 1.
+- `extractFromPage()`
+  - Main page-by-page extraction and navigation logic.
+- `processPage(doc)`
+  - Pulls post metadata/content from `.contentlookseparator` and `.contentlook` nodes.
+- `printStandard()`
+  - Renders full HTML post bodies and uploads JSON via `GM.xmlHttpRequest`.
+- `printStandardForm()`
+  - Renders checkbox form with inline script for selecting posts (selection is currently not uploaded).
+- `printNoQuotes()`
+  - Renders text-only variant and uploads JSON (currently not called in final branch).
+
+Strengths
+- Simple and deterministic extraction workflow across paginated topics.
+- Uses persistent cross-page state via `sessionStorage`.
+- Stores both HTML and stripped text variants per post.
+- Separates extraction and output/report responsibilities.
+
+Risks / Fragile Points
+- DOM selectors rely on fixed positional assumptions (e.g., index `[1]`, `[2]`, hardcoded split index `nav_info[6]`) and may break if site markup changes.
+- `checkStatus()` requires `document.readyState == "interactive"`; if state transitions to `complete` before check, extraction could be skipped.
+- `sessionStorage` cleanup (`finish()`) is not invoked in active paths; stale data may persist between runs.
+- Report form mode has inline `sendData()` alerts/debug behavior and does not currently POST selected subset.
+- Uses deprecated `event.keyCode` and legacy `window.open(..., false)` patterns.
+- Upload target is hardcoded to a local LAN endpoint (`vortex.lan`), which may fail outside the author’s network.
+
+Behavior Notes
+- Script logs extensively to console for traceability.
+- Ads/non-post separators are skipped by requiring an element id in separator blocks.
+- Output windows are named (`site`, `report`, `form`) to reuse the same targets.
+
+Maintenance Recommendations
+- Harden selectors with defensive checks and more resilient query logic.
+- Accept both `interactive` and `complete` in readiness gate.
+- Always call cleanup at the end of successful/failed runs.
+- Replace `keyCode` with `event.key`.
+- Externalize API endpoint/config and add failure handling UX.
+- Complete form submission path so selected posts can be persisted/uploaded.
