@@ -18,6 +18,17 @@ The object here was to just get it working... which it does. I have not spent th
 11/22/25 - Chrome updates causing scripts to break...
 I've been running version 7 of the script successfully for the past year. So, I need to make fixes for a version 8.
 
+02/14/26 - Deleted files from repository:
+- OPP-Extractor.js
+
+---
+
+Testing (unit tests)
+
+1. `npm install`
+2. `npm test`
 
 
+OPP-Extractor-0.7.user.js | This was the current code when Chrome changed it's cross-domain policy.
+OPP-Extractor-0.8.user.js | This is the initial AI-assisted version.
 

@@ -1,0 +1,18 @@
+{
+  "name": "opp-userscripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^4.0.18",
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^28.1.0",
+    "vitest": "^4.0.18"
+  },
+  "jest": {
+    "testEnvironment": "jsdom"
+  }
+}

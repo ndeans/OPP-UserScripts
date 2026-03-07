@@ -1,20 +1,21 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.4
+// @version      0.8.1
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
-// @match        https://www.onepoliticalplaza.com/t-*
+// @match        https://www.onepoliticalplaza.com/topic/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=onepoliticalplaza.com
 // @grant        GM.xmlHttpRequest
 // ==/UserScript==
 
-var base_url = "https://www.onepoliticalplaza.com/t-";
+var base_url = "https://www.onepoliticalplaza.com/topic/";
 var report_type = 0;
 var topic_number = 0;
 var current_page = 0;
 var job_data;
 var topic_data;
+var export_data;
 var page_data = [];
 var post_data = [];
 
@@ -47,6 +48,19 @@ var post_data = [];
 
     });
 })();
+
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        data_fromUrl: data_fromUrl,
+        data_fromPage: data_fromPage,
+        processPage: processPage,
+        setTopicNumber: (val) => { topic_number = val; },
+        getTopicNumber: () => topic_number,
+        setCurrentPage: (val) => { current_page = val; },
+        getCurrentPage: () => current_page
+    };
+}
 
 // *****************************************************************************************************************
 
@@ -82,7 +96,7 @@ function initiateExtraction() {
     sessionStorage.setItem("job-data", JSON.stringify(job_data));
 
     console.log("initiateExtraction(): #001: extraction requested on page " + current_page + "... session variables initiated.");
-    let address = base_url + topic_number + "-1.html";
+    let address = base_url + topic_number + "/1";
     window.name = "site";
     window.open(address, "site", false);
 }
@@ -116,7 +130,7 @@ function extractFromPage() {
         // redirect if last page
         if (current_page < topic_data.page_count) {
             var new_page = (current_page + 1);
-            let address = base_url + topic_number + "-" + new_page + ".html";
+            let address = base_url + topic_number + "/" + new_page;
             console.log("loading..." + address);
             window.name = "site";
             window.open(address, "site", false);
@@ -126,13 +140,17 @@ function extractFromPage() {
             console.log("no more pages.");
             console.log("extractFromPage(): post_data size = " + post_data.length);
             job_data = JSON.parse(sessionStorage.getItem("job-data"));
+            export_data = {"topic_id":topic_data.id, "topic_title":topic_data.title, "report_type":job_data.report_type, "post_data":post_data};
+
+
             report_type = job_data.report_type;
             // report();
             if (report_type == 1) {
                 printStandard();
             }
             if (report_type == 2) {
-                printNoQuotes();
+                // printNoQuotes();
+                printStandardForm();
             }
             // finish();
         }
@@ -155,12 +173,20 @@ function data_fromPage(doc) {
 }
 
 function data_fromUrl(url) {
-    var idx1 = url.indexOf("/t-") + 3;
-    var str1 = url.substring(idx1);
-    var idx2 = str1.indexOf("-");
-    var idx3 = str1.indexOf(".html");
-    topic_number = str1.substring(0, idx2);
-    current_page = parseInt(str1.substring(idx2+1,idx3), 10);
+    // 1. Extract the topic number. Match digits immediately following '/topic/'
+    const topicMatch = url.match(/\/topic\/(\d+)/);
+    if (topicMatch) {
+        topic_number = topicMatch[1];
+    }
+    // 2. Extract the page number - if no page number is found at the end, default to 1
+    const pageMatch = url.match(/\/(\d+)\/?$/);
+
+    // Ensure we don't mistake the topic ID for a page number if it's the only number present.
+    if (pageMatch && pageMatch[1] !== topic_number) {
+        current_page = parseInt(pageMatch[1], 10);
+    } else {
+        current_page = 1;
+    }
 }
 
 function processPage(doc) {
@@ -219,7 +245,7 @@ function finish() {
 
 // *****************************************************************************************************************
 
-function headerHTML2(report_title) {
+function headerHTMLSimple(report_title) {
     var html;
     html = "<html><head><title>" + report_title + "</title>";
     html = html + "<style type='text/css'>";
@@ -227,13 +253,13 @@ function headerHTML2(report_title) {
     html = html + "h2{font-size:12pt}.post{}";
     html = html + ".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}";
     html = html + "</style>";
-    html = html + "</head><body><form name='Submit' onSubmit='return sendData()'>";
+    html = html + "</head><body>";
     html = html + "<h2>" + topic_data.id + ": " + topic_data.title + "  ( " + topic_data.page_count + " pages )</h2><hr>";
     return html;
 }
 
 
-function headerHTML(report_title) {
+function headerHTMLScript(report_title) {
     var html;
     html = "<html><head><title>" + report_title + "</title>";
     html = html + "<style type='text/css'>";
@@ -246,22 +272,28 @@ function headerHTML(report_title) {
 
     html = html + "<script type='text/javascript'>\n";
     html = html + "function sendData(){\n";
+
     html = html + "    alert('hello');\n";
-    html = html + "    var post_collection_out = [];\n";
-    html = html + "    var post_collection_in = document.getElementsByClassName('post');\n";
-    html = html + "    alert('posts in report... ' + post_collection_in.length);\n";
-    html = html + "";
-    html = html + "";
-    html = html + "    for (i=0; i < post_collection_in.length; i++ ) {\n";
-    html = html + "        if (post_collection_in[i].getElementsByName('selected')){\n";
-    html = html + "//          post_collection_out.push(post_data[i])\n";
-    html = html + "        }\n";
-    html = html + "    }\n";
-    html = html + "";
+
+    html = html + "    var selectors = document.getElementsByClassName('selected');\n";
+    html = html + "    var post_data = JSON.parse(sessionStorage.getItem('post-data')); \n";
+    html = html + "    var selected_posts = [];\n";
+    html = html + "    alert('posts in session... ' + post_data.length + ', checks in report... ' + selectors.length);\n";
+
+    html = html + "    var j = 0; \n";
+    html = html + "    for (var i = 0; i < selectors.length; i++ ) { \n";
+    html = html + "        if (selectors[i].checked){\n";
+    html = html + "            console.log('post is selected'); j++; \n";
+    html = html + "            selected_posts.push(post_data[i]);\n";
+    html = html + "        } \n";
+    html = html + "    } \n";
+    html = html + "    alert('selected posts... ' + j + '. Added to collection...' + selected_posts.length);\n";
+
     html = html + "    console.log('removing session variables.');\n";
     html = html + "    sessionStorage.removeItem('topic-data');\n";
     html = html + "    sessionStorage.removeItem('post-data');\n";
     html = html + "    sessionStorage.removeItem('job-data');\n";
+
     html = html + "}</script>\n";
     html = html + "</head><body><form name='Submit' onSubmit='return sendData()'>";
     html = html + "<h2>" + topic_data.id + ": " + topic_data.title + "  ( " + topic_data.page_count + " pages )</h2><hr>";
@@ -269,64 +301,105 @@ function headerHTML(report_title) {
 }
 
 // post_record = {"id": post_id, "author": post_author,"head": post_time, "link": post_link , "text": post_content};
+
 function printStandard() {
     var w_report;
     window.name = "report";
+    // w_report = window.open("http://localhost:8000/Test1.html");
     w_report = window.open("","report","");
-    w_report.document.write(headerHTML("topic-" + topic_data.id));
+    w_report.document.write(headerHTMLSimple("topic-" + topic_data.id));
     console.log("printStandard() : function check...");
     post_data = JSON.parse(sessionStorage.getItem("post-data"));
     if (post_data) {
         post_data.forEach(function(post){
             w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
-            w_report.document.write("<input type='checkbox' name='selected' value='false'>&nbsp");
             w_report.document.write("<a name='plink' href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
             w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
             w_report.document.write("<div class='post_body'>" + post.html + "</div></div><hr>");
         });
+        w_report.document.write("</body></html>");
     }
-    w_report.document.write("<input name='Submit' type='submit' value='Update'></form></body></html>");
-    window.stop();Webstorm
+    GM.xmlHttpRequest({
+        method: 'POST',
+        url: 'http://vortex.lan:8080/Raven/api/upload',
+        data: JSON.stringify(export_data),
+        headers: {'Content-Type': 'application/json'},
+        onload: function(response) {
+                if (response.status >= 200 && response.status < 400) {
+                    console.log('Response received:', response.responseText);
+                } else {
+                    console.error('Error during POST request: ', response.status);
+                }
+        },
+        onerror: function(response) {
+            console.error('Network error',response.status);
+        }
+    });
+    w_report.document.close();
+    window.stop();
 }
 
+function printStandardForm() {
 
+    var w_form;
+    window.name = "form";
+    w_form = window.open("","form","");
+    w_form.document.write(headerHTMLScript("topic-" + topic_data.id));
+    console.log("printStandardForm() : function check...");
+    post_data = JSON.parse(sessionStorage.getItem("post-data"));
+    if (post_data) {
+        post_data.forEach(function(post){
+            w_form.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
+            w_form.document.write("<input type='checkbox' class='selected' value='true'>&nbsp");
+            w_form.document.write("<a name='plink' href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
+            w_form.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
+            w_form.document.write("<div class='post_body'>" + post.html + "</div></div><hr>");
+        });
+        w_form.document.write("<input name='Submit' type='submit' value='Update'></form></body></html>");
+    }
+    w_form.document.close();
+    window.stop();
+}
 
 function printNoQuotes(){
     var w_report;
     window.name = "report";
-    w_report = window.open("","","");
-    w_report.document.write(headerHTML("topic-" + topic_data.id));
+    w_report = window.open("","report","");
+    w_report.document.write(headerHTMLSimple("topic-" + topic_data.id));
     console.log("printNoQuotes() : function check...");
     post_data = JSON.parse(sessionStorage.getItem("post-data"));
 
     if (post_data) {
+        post_data.forEach(function(post){
+            w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
+            w_report.document.write("<a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
+            w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
+            w_report.document.write("<div class='post_body'>" + post.text + "</div></div><hr>");
+        });
+        w_report.document.write("</body></html>");
 
         GM.xmlHttpRequest({
             method: 'POST',
             // url: 'http://localhost:1880/websvc',
             // url: 'http://localhost:8080/JAXRS-EX-06_mod/opp/upload',
-            url: 'http://localhost:8080/Raven-Jakarta/opp/upload',
-            data: JSON.stringify(post_data),
+            // url: 'http://localhost:8080/Raven-Jakarta/opp/upload',
+            // url: 'http://vortex.lan:8080/rnv-Jakarta/api/upload',
+            url: 'http://vortex.lan:8080/Raven/api/upload',
+            data: JSON.stringify(export_data),
             headers: {'Content-Type': 'application/json'},
             onload: function(response) {
                 if (response.status >= 200 && response.status < 400) {
                     console.log('Response received:', response.responseText);
                 } else {
-                    console.error('Error during GET request: ', response.status);
+                    console.error('Error during POST request: ', response.status);
                 }
             },
             onerror: function(response) {
                 console.error('Network error',response.status);
             }
         });
-
-        post_data.forEach(function(post){
-            w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
-            w_report.document.write("<input type='checkbox' name='selected' value='true'>&nbsp");
-            w_report.document.write("<a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
-            w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
-            w_report.document.write("<div class='post_body'>" + post.text + "</div></div><hr>");
-        });
     }
+    window.stop();
 }
+
 // ********************************************************************************************** END OF FILE **************

@@ -17,7 +17,7 @@ var job_data;
 var topic_data;
 var export_data;
 var page_data = [];
-var post_data = [];
+var post_data = [];faceboo
 
 (function() {
     'use strict';
@@ -32,6 +32,7 @@ var post_data = [];
             console.log(">> EVENT : DOMContentLoaded");
             checkStatus();
         });
+        OPP
     }
 
     document.addEventListener('keydown', function(event) {
