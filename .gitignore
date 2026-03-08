@@ -1,0 +1,7 @@
+node_modules/
+.obsidian/
+eh/
+temp-01
+.DS_Store
+*.log
+package-lock.json
