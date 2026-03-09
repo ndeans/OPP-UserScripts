@@ -1,4 +1,4 @@
-const { data_fromUrl, getTopicNumber, getCurrentPage } = require("../OPP-Extractor-0.8.user.js");
+const { data_fromUrl, getTopicNumber, getCurrentPage } = require("../OPP-Extractor.user.js");
 
 describe("OPP-Extractor URL Parsing", () => {
     test("should extract topic ID and page 1 from a standard URL without page number", () => {
@@ -38,7 +38,7 @@ describe("OPP-Extractor URL Parsing", () => {
 });
 
 describe("OPP-Extractor Page Data Extraction", () => {
-    const { data_fromPage } = require("../OPP-Extractor-0.8.user.js");
+    const { data_fromPage } = require("../OPP-Extractor.user.js");
 
     test("should extract topic title and page count from page HTML", () => {
         // Mocking the document structure used by data_fromPage
@@ -61,6 +61,47 @@ describe("OPP-Extractor Page Data Extraction", () => {
 
         expect(result.topic_title).toBe("Test Topic Title");
         expect(result.page_count).toBe(15);
+    });
+});
+
+describe("OPP-Extractor Post Data Extraction", () => {
+    const { processPage } = require("../OPP-Extractor.user.js");
+
+    test("should extract post details from page HTML", () => {
+        document.body.innerHTML = `
+            <div class="contentlookseparator" id="post123">
+                <a href="https://www.onepoliticalplaza.com/t-377456-1#123"></a>
+                <span>March 9, 2026</span>
+            </div>
+            <div class="contentlook">
+                <a href="/user/456">AuthorName</a>
+                <div></div>
+                <div class="post_body_container">
+                    <div>Actual Post Content</div>
+                    Text Node 1
+                    <br>
+                    Text Node 2
+                </div>
+            </div>
+        `;
+
+        // The script expects:
+        // meta_collection[i].getElementsByTagName('span')[0].innerText for post_time
+        // meta_collection[i].getElementsByTagName('a')[0].href for post_link
+        // post_collection[j].getElementsByTagName('a')[0].innerText for post_author
+        // post_collection[j].getElementsByTagName('div')[2].innerHTML for post_content
+        // post_collection[j].getElementsByTagName('div')[2].childNodes for post_text extraction
+
+        const results = processPage(document);
+
+        expect(results.length).toBe(1);
+        expect(results[0].id).toBe("post123");
+        expect(results[0].author).toBe("AuthorName");
+        expect(results[0].head).toBe("March 9, 2026");
+        expect(results[0].link).toBe("https://www.onepoliticalplaza.com/t-377456-1#123");
+        expect(results[0].html).toContain("Actual Post Content");
+        expect(results[0].text).toContain("Text Node 1");
+        expect(results[0].text).toContain("Text Node 2");
     });
 });
 

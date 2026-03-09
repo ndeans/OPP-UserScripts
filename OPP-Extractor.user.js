@@ -1,15 +1,16 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.7
+// @version      0.9.0
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
-// @match        https://www.onepoliticalplaza.com/t-*
+// @match        https://www.onepoliticalplaza.com/topic/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=onepoliticalplaza.com
+// @connect      vortex.lan
 // @grant        GM.xmlHttpRequest
 // ==/UserScript==
 
-var base_url = "https://www.onepoliticalplaza.com/t-";
+var base_url = "https://www.onepoliticalplaza.com/topic/";
 var report_type = 0;
 var topic_number = 0;
 var current_page = 0;
@@ -17,7 +18,7 @@ var job_data;
 var topic_data;
 var export_data;
 var page_data = [];
-var post_data = [];faceboo
+var post_data = [];
 
 (function() {
     'use strict';
@@ -32,7 +33,6 @@ var post_data = [];faceboo
             console.log(">> EVENT : DOMContentLoaded");
             checkStatus();
         });
-        OPP
     }
 
     document.addEventListener('keydown', function(event) {
@@ -49,6 +49,19 @@ var post_data = [];faceboo
 
     });
 })();
+
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        data_fromUrl: data_fromUrl,
+        data_fromPage: data_fromPage,
+        processPage: processPage,
+        setTopicNumber: (val) => { topic_number = val; },
+        getTopicNumber: () => topic_number,
+        setCurrentPage: (val) => { current_page = val; },
+        getCurrentPage: () => current_page
+    };
+}
 
 // *****************************************************************************************************************
 
@@ -84,7 +97,7 @@ function initiateExtraction() {
     sessionStorage.setItem("job-data", JSON.stringify(job_data));
 
     console.log("initiateExtraction(): #001: extraction requested on page " + current_page + "... session variables initiated.");
-    let address = base_url + topic_number + "-1.html";
+    let address = base_url + topic_number + "/1";
     window.name = "site";
     window.open(address, "site", false);
 }
@@ -118,7 +131,7 @@ function extractFromPage() {
         // redirect if last page
         if (current_page < topic_data.page_count) {
             var new_page = (current_page + 1);
-            let address = base_url + topic_number + "-" + new_page + ".html";
+            let address = base_url + topic_number + "/" + new_page;
             console.log("loading..." + address);
             window.name = "site";
             window.open(address, "site", false);
@@ -161,12 +174,20 @@ function data_fromPage(doc) {
 }
 
 function data_fromUrl(url) {
-    var idx1 = url.indexOf("/t-") + 3;
-    var str1 = url.substring(idx1);
-    var idx2 = str1.indexOf("-");
-    var idx3 = str1.indexOf(".html");
-    topic_number = str1.substring(0, idx2);
-    current_page = parseInt(str1.substring(idx2+1,idx3), 10);
+    // 1. Extract the topic number. Match digits immediately following '/topic/'
+    const topicMatch = url.match(/\/topic\/(\d+)/);
+    if (topicMatch) {
+        topic_number = topicMatch[1];
+    }
+    // 2. Extract the page number - if no page number is found at the end, default to 1
+    const pageMatch = url.match(/\/(\d+)\/?$/);
+
+    // Ensure we don't mistake the topic ID for a page number if it's the only number present.
+    if (pageMatch && pageMatch[1] !== topic_number) {
+        current_page = parseInt(pageMatch[1], 10);
+    } else {
+        current_page = 1;
+    }
 }
 
 function processPage(doc) {
@@ -252,28 +273,48 @@ function headerHTMLScript(report_title) {
 
     html = html + "<script type='text/javascript'>\n";
     html = html + "function sendData(){\n";
-
-    html = html + "    alert('hello');\n";
-
     html = html + "    var selectors = document.getElementsByClassName('selected');\n";
     html = html + "    var post_data = JSON.parse(sessionStorage.getItem('post-data')); \n";
+    html = html + "    var topic_data = JSON.parse(sessionStorage.getItem('topic-data')); \n";
+    html = html + "    var job_data = JSON.parse(sessionStorage.getItem('job-data')); \n";
     html = html + "    var selected_posts = [];\n";
-    html = html + "    alert('posts in session... ' + post_data.length + ', checks in report... ' + selectors.length);\n";
 
-    html = html + "    var j = 0; \n";
     html = html + "    for (var i = 0; i < selectors.length; i++ ) { \n";
     html = html + "        if (selectors[i].checked){\n";
-    html = html + "            console.log('post is selected'); j++; \n";
     html = html + "            selected_posts.push(post_data[i]);\n";
     html = html + "        } \n";
     html = html + "    } \n";
-    html = html + "    alert('selected posts... ' + j + '. Added to collection...' + selected_posts.length);\n";
 
-    html = html + "    console.log('removing session variables.');\n";
-    html = html + "    sessionStorage.removeItem('topic-data');\n";
-    html = html + "    sessionStorage.removeItem('post-data');\n";
-    html = html + "    sessionStorage.removeItem('job-data');\n";
+    html = html + "    var export_data = { \n";
+    html = html + "        'topic_id': topic_data.id, \n";
+    html = html + "        'topic_title': topic_data.title, \n";
+    html = html + "        'report_type': job_data.report_type, \n";
+    html = html + "        'post_data': selected_posts \n";
+    html = html + "    }; \n";
 
+    html = html + "    fetch('http://vortex.lan:8080/Raven/api/upload', {\n";
+    html = html + "        method: 'POST',\n";
+    html = html + "        headers: {\n";
+    html = html + "            'Content-Type': 'application/json'\n";
+    html = html + "        },\n";
+    html = html + "        body: JSON.stringify(export_data)\n";
+    html = html + "    })\n";
+    html = html + "    .then(response => {\n";
+    html = html + "        if (response.ok) {\n";
+    html = html + "            alert('Upload successful! ' + selected_posts.length + ' posts sent.');\n";
+    html = html + "            console.log('removing session variables.');\n";
+    html = html + "            sessionStorage.removeItem('topic-data');\n";
+    html = html + "            sessionStorage.removeItem('post-data');\n";
+    html = html + "            sessionStorage.removeItem('job-data');\n";
+    html = html + "        } else {\n";
+    html = html + "            alert('Upload failed: ' + response.status);\n";
+    html = html + "        }\n";
+    html = html + "    })\n";
+    html = html + "    .catch(error => {\n";
+    html = html + "        console.error('Error:', error);\n";
+    html = html + "        alert('Network error or CORS issue. Check console for details.');\n";
+    html = html + "    });\n";
+    html = html + "    return false;\n";
     html = html + "}</script>\n";
     html = html + "</head><body><form name='Submit' onSubmit='return sendData()'>";
     html = html + "<h2>" + topic_data.id + ": " + topic_data.title + "  ( " + topic_data.page_count + " pages )</h2><hr>";
