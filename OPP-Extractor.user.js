@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.9.0
+// @version      0.9.1
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/topic/*
