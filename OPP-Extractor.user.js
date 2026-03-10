@@ -7,7 +7,7 @@
 // @match        https://www.onepoliticalplaza.com/topic/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=onepoliticalplaza.com
 // @connect      vortex.lan
-// @grant        GM.xmlHttpRequest
+// @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 var base_url = "https://www.onepoliticalplaza.com/topic/";
@@ -340,7 +340,7 @@ function printStandard() {
         });
         w_report.document.write("</body></html>");
     }
-    GM.xmlHttpRequest({
+    GM_xmlhttpRequest({
         method: 'POST',
         url: 'http://vortex.lan:8080/Raven/api/upload',
         data: JSON.stringify(export_data),
@@ -399,7 +399,7 @@ function printNoQuotes(){
         });
         w_report.document.write("</body></html>");
 
-        GM.xmlHttpRequest({
+        GM_xmlhttpRequest({
             method: 'POST',
             // url: 'http://localhost:1880/websvc',
             // url: 'http://localhost:8080/JAXRS-EX-06_mod/opp/upload',
