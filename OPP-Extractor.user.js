@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.9.3
+// @version      0.9.4
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/topic/*
@@ -27,12 +27,10 @@
     console.log("OPP-Extractor initialized.");
 
     if (document.readyState !== 'loading') {
-        console.log("document is already ready");
         checkStatus();
     }
     else {
         document.addEventListener('DOMContentLoaded', function () {
-            console.log(">> EVENT : DOMContentLoaded");
             checkStatus();
         });
     }
@@ -54,24 +52,13 @@
 
     function checkStatus() {
         if (document.readyState == "interactive" || document.readyState == "complete") {
-            console.log("checkStatus: document loaded : readystate = '" + document.readyState + "'");
             if (sessionStorage.getItem("topic-data")) {
-                console.log("checkStatus: #002: extraction in progress.");
                 extractFromPage();
                 return;
             }
-            else {
-                console.log("checkStatus: #000: bypassing extraction.");
-                return;
-            }
-        }
-        else {
-            console.log("checkStatus: document not ready... (readystate = '" + document.readyState + "').");
-            return;
         }
     }
 
-    // triggered by F2: pulls topic_number from URL and stores in session variable then redirects to first page.
     function initiateExtraction() {
         data_fromUrl(window.location.href);
         topic_data = {"id":topic_number, "title":"", "page_count":0};
@@ -80,10 +67,9 @@
         job_data = {"topic-id":topic_number, "report_type":report_type};
         sessionStorage.setItem("job-data", JSON.stringify(job_data));
 
-        console.log("initiateExtraction(): #001: extraction requested on page " + current_page + "... session variables initiated.");
+        console.log("initiateExtraction(): extraction requested on page " + current_page);
         let address = base_url + topic_number + "/1";
-        window.name = "site";
-        window.open(address, "site", false);
+        window.location.href = address;
     }
 
     function extractFromPage() {
@@ -92,45 +78,36 @@
         if (current_page == 1) {
             job_data = JSON.parse(sessionStorage.getItem("job-data"));
             report_type = job_data.report_type;
-
-            // get topic data and page count from initial page
             page_data = data_fromPage(document);
             topic_data = {"id":topic_number, "title":page_data.topic_title, "page_count":page_data.page_count, "report-type":report_type};
             sessionStorage.setItem("topic-data", JSON.stringify(topic_data));
-            console.log("extractFromPage(): session variable (topic-data) updated on page " + current_page);
         }
         else {
             topic_data = JSON.parse(sessionStorage.getItem("topic-data"));
+            job_data = JSON.parse(sessionStorage.getItem("job-data"));
+            report_type = job_data.report_type;
         }
 
         if (current_page <= topic_data.page_count ) {
-            // extract page if there is a session variable for it
             if (JSON.parse(sessionStorage.getItem("post-data"))) {
                 post_data = JSON.parse(sessionStorage.getItem("post-data"));
             }
             processPage(document);
             sessionStorage.setItem("post-data", JSON.stringify(post_data));
-            // redirect if last page
+            
             if (current_page < topic_data.page_count) {
                 var new_page = (current_page + 1);
-                let address = base_url + topic_number + "/" + new_page;
-                console.log("loading..." + address);
-                window.name = "site";
-                window.open(address, "site", false);
+                window.location.href = base_url + topic_number + "/" + new_page;
             }
-            // exit script
             else {
-                console.log("no more pages.");
-                console.log("extractFromPage(): post_data size = " + post_data.length);
-                job_data = JSON.parse(sessionStorage.getItem("job-data"));
+                console.log("Extraction complete. post_data size = " + post_data.length);
                 export_data = {"topic_id":topic_data.id, "topic_title":topic_data.title, "report_type":job_data.report_type, "post_data":post_data};
 
-                report_type = job_data.report_type;
                 if (report_type == 1) {
                     printStandard();
                 }
                 if (report_type == 2) {
-                    printStandardForm();
+                    showSelectiveUploadUI();
                 }
             }
         }
@@ -157,29 +134,21 @@
     }
 
     function processPage(doc) {
-        var post_collection;
-        var meta_collection;
-        var i, j, k;
-        var post_text = "";
-
-        post_collection = doc.getElementsByClassName('contentlook');
-        meta_collection = doc.getElementsByClassName('contentlookseparator');
+        var post_collection = doc.getElementsByClassName('contentlook');
+        var meta_collection = doc.getElementsByClassName('contentlookseparator');
         var separators = meta_collection.length;
-
-        console.log("processPage() : number of posts on this page : " + post_collection.length);
-
-        j=0;
-        for (i=0; i < separators; i++ ) {
+        var j=0;
+        for (var i=0; i < separators; i++ ) {
             var post_id = meta_collection[i].id;
             if (post_id) {
-                post_text = "";
+                var post_text = "";
                 var post_time = meta_collection[i].getElementsByTagName('span')[0].innerText;
                 var post_link = meta_collection[i].getElementsByTagName('a')[0].href;
                 var post_author = post_collection[j].getElementsByTagName('a')[0].innerText;
                 var post_content = post_collection[j].getElementsByTagName('div')[2].innerHTML;
                 var post_blocks = post_collection[j].getElementsByTagName('div')[2].childNodes;
 
-                for (k=0; k < post_blocks.length; k++ ) {
+                for (var k=0; k < post_blocks.length; k++ ) {
                     if(post_blocks[k].nodeType == Node.TEXT_NODE) {
                         post_text = post_text + "<br>" + post_blocks[k].nodeValue;
                         if (k < post_blocks.length-1) { post_text = post_text + "<br>---<br>"; }
@@ -188,7 +157,6 @@
 
                 var post_record = {"id": post_id, "author": post_author,"head": post_time, "link": post_link, "text": post_text, "html": post_content};
                 post_data.push(post_record);
-                console.log("post_record : " , post_record);
                 j++;
             }
         }
@@ -202,140 +170,95 @@
         sessionStorage.removeItem("job-data");
     }
 
-    function headerHTMLSimple(report_title) {
-        var html;
-        html = "<html><head><title>" + report_title + "</title>";
-        html = html + "<style type='text/css'>";
-        html = html + "body{font-family:Verdana;font-size:10pt}";
-        html = html + "h2{font-size:12pt}.post{}";
-        html = html + ".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}";
-        html = html + "</style>";
-        html = html + "</head><body>";
-        html = html + "<h2>" + topic_data.id + ": " + topic_data.title + "  ( " + topic_data.page_count + " pages )</h2><hr>";
-        return html;
-    }
-
-    function headerHTMLScript(report_title) {
-        var html;
-        html = "<html><head><title>" + report_title + "</title>";
-        html = html + "<style type='text/css'>";
-        html = html + "body{font-family:Verdana;font-size:10pt}";
-        html = html + "h2{font-size:12pt}.post{}";
-        html = html + ".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}";
-        html = html + "</style>";
-        html = html + "<script type='text/javascript'>\n";
-        html = html + "function sendData(){\n";
-        html = html + "    var selectors = document.getElementsByClassName('selected');\n";
-        html = html + "    var post_data = JSON.parse(sessionStorage.getItem('post-data')); \n";
-        html = html + "    var topic_data = JSON.parse(sessionStorage.getItem('topic-data')); \n";
-        html = html + "    var job_data = JSON.parse(sessionStorage.getItem('job-data')); \n";
-        html = html + "    var selected_posts = [];\n";
-        html = html + "    for (var i = 0; i < selectors.length; i++ ) { \n";
-        html = html + "        if (selectors[i].checked){\n";
-        html = html + "            selected_posts.push(post_data[i]);\n";
-        html = html + "        } \n";
-        html = html + "    } \n";
-        html = html + "    var export_data = { \n";
-        html = html + "        'topic_id': topic_data.id, \n";
-        html = html + "        'topic_title': topic_data.title, \n";
-        html = html + "        'report_type': job_data.report_type, \n";
-        html = html + "        'post_data': selected_posts \n";
-        html = html + "    }; \n";
-        html = html + "    fetch('http://vortex:8080/Raven/api/upload', {\n";
-        html = html + "        method: 'POST',\n";
-        html = html + "        headers: {'Content-Type': 'application/json'},\n";
-        html = html + "        body: JSON.stringify(export_data)\n";
-        html = html + "    })\n";
-        html = html + "    .then(response => {\n";
-        html = html + "        if (response.ok) {\n";
-        html = html + "            alert('Upload successful! ' + selected_posts.length + ' posts sent.');\n";
-        html = html + "            sessionStorage.removeItem('topic-data');\n";
-        html = html + "            sessionStorage.removeItem('post-data');\n";
-        html = html + "            sessionStorage.removeItem('job-data');\n";
-        html = html + "        } else {\n";
-        html = html + "            alert('Upload failed: ' + response.status);\n";
-        html = html + "        }\n";
-        html = html + "    })\n";
-        html = html + "    .catch(error => {\n";
-        html = html + "        console.error('Error:', error);\n";
-        html = html + "        alert('Network error or CORS issue. Check console for details.');\n";
-        html = html + "    });\n";
-        html = html + "    return false;\n";
-        html = html + "}</script>\n";
-        html = html + "</head><body><form name='Submit' onSubmit='return sendData()'>";
-        html = html + "<h2>" + topic_data.id + ": " + topic_data.title + "  ( " + topic_data.page_count + " pages )</h2><hr>";
-        return html;
-    }
-
     function printStandard() {
-        var w_report;
-        window.name = "report";
-        w_report = window.open("","report","");
-        w_report.document.write(headerHTMLSimple("topic-" + topic_data.id));
-        post_data = JSON.parse(sessionStorage.getItem("post-data"));
-        if (post_data) {
-            post_data.forEach(function(post){
-                w_report.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
-                w_report.document.write("<a name='plink' href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
-                w_report.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
-                w_report.document.write("<div class='post_body'>" + post.html + "</div></div><hr>");
-            });
-            w_report.document.write("</body></html>");
-        }
+        var w_report = window.open("","report","");
+        w_report.document.write("<html><head><title>Topic " + topic_data.id + "</title>");
+        w_report.document.write("<style>body{font-family:Verdana;font-size:10pt} .post_header{font-weight:bold;color:gray} .post_author{color:red}</style>");
+        w_report.document.write("</head><body><h2>" + topic_data.id + ": " + topic_data.title + "</h2><hr>");
         
+        post_data.forEach(function(post){
+            w_report.document.write("<div class='post'><div class='post_header'><a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a> - <i>" + post.head + "</i> - <span class='post_author'>" + post.author + "</span></div><br>");
+            w_report.document.write("<div class='post_body'>" + post.html + "</div></div><hr>");
+        });
+        w_report.document.write("</body></html>");
+        w_report.document.close();
+
+        uploadToRaven(export_data);
+    }
+
+    function showSelectiveUploadUI() {
+        const overlay = document.createElement('div');
+        overlay.id = 'opp-selector-overlay';
+        overlay.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:10000; overflow-y:scroll; padding:20px; box-sizing:border-box; font-family:Verdana; font-size:10pt;';
+        
+        let html = "<h2>Select Posts to Upload</h2><button id='btn-upload-selected' style='position:fixed; top:20px; right:40px; padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer; font-weight:bold;'>Upload Selected</button>";
+        html += "<button id='btn-close-overlay' style='position:fixed; top:20px; right:180px; padding:10px 20px; background:#f44336; color:white; border:none; cursor:pointer; font-weight:bold;'>Cancel</button><hr>";
+        
+        post_data.forEach((post, index) => {
+            html += `<div style='border-bottom:1px solid #ccc; padding:10px;'>
+                <input type='checkbox' class='post-selector' data-index='${index}' checked> 
+                <b>Post: ${post.id}</b> - <i>${post.head}</i> - <span style='color:red;'>${post.author}</span><br>
+                <div style='max-height:100px; overflow:hidden; opacity:0.7; font-size:9pt;'>${post.html}</div>
+            </div>`;
+        });
+        
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+
+        document.getElementById('btn-upload-selected').addEventListener('click', () => {
+            const selectedIndices = Array.from(document.querySelectorAll('.post-selector:checked')).map(cb => parseInt(cb.dataset.index));
+            const selectedPosts = selectedIndices.map(idx => post_data[idx]);
+            
+            if (selectedPosts.length === 0) {
+                alert("No posts selected!");
+                return;
+            }
+
+            const selective_export = {
+                "topic_id": topic_data.id,
+                "topic_title": topic_data.title,
+                "report_type": report_type,
+                "post_data": selectedPosts
+            };
+
+            uploadToRaven(selective_export);
+            document.body.removeChild(overlay);
+        });
+
+        document.getElementById('btn-close-overlay').addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            finish();
+        });
+    }
+
+    function uploadToRaven(data) {
         const api = (typeof GM_xmlhttpRequest !== 'undefined') ? GM_xmlhttpRequest : GM.xmlHttpRequest;
         api({
             method: 'POST',
             url: 'http://vortex:8080/Raven/api/upload',
-            data: JSON.stringify(export_data),
+            data: JSON.stringify(data),
             headers: {'Content-Type': 'application/json'},
             onload: function(response) {
                 if (response.status >= 200 && response.status < 400) {
-                    console.log('Response received:', response.responseText);
+                    alert('Upload successful!');
                 } else {
-                    console.error('Error during POST request: ', response.status);
+                    alert('Upload failed: ' + response.status);
                 }
                 finish();
             },
             onerror: function(response) {
-                console.error('Network error',response.status);
+                alert('Network error during upload.');
                 finish();
             }
         });
-        w_report.document.close();
-        window.stop();
     }
 
-    function printStandardForm() {
-        var w_form;
-        window.name = "form";
-        w_form = window.open("","form","");
-        w_form.document.write(headerHTMLScript("topic-" + topic_data.id));
-        post_data = JSON.parse(sessionStorage.getItem("post-data"));
-        if (post_data) {
-            post_data.forEach(function(post){
-                w_form.document.write("<div class='post'><div class='post_header'><font color='gray'><b>");
-                w_form.document.write("<input type='checkbox' class='selected' value='true'>&nbsp");
-                w_form.document.write("<a name='plink' href='" + post.link + "' target='_blank'>Post: " + post.id + "</a>");
-                w_form.document.write("- <i>" , post.head + "</i> - </font><font color='red'>" + post.author + " </b></font></div><br>");
-                w_form.document.write("<div class='post_body'>" + post.html + "</div></div><hr>");
-            });
-            w_form.document.write("<input name='Submit' type='submit' value='Update'></form></body></html>");
-        }
-        w_form.document.close();
-        window.stop();
-    }
-
-    // Export for testing in Node.js environments
+    // Export for testing
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
             data_fromUrl: data_fromUrl,
             data_fromPage: data_fromPage,
-            processPage: processPage,
-            setTopicNumber: (val) => { topic_number = val; },
-            getTopicNumber: () => topic_number,
-            setCurrentPage: (val) => { current_page = val; },
-            getCurrentPage: () => current_page
+            processPage: processPage
         };
     }
 
