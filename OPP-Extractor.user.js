@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.9.2
+// @version      0.9.3
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/topic/*
@@ -195,6 +195,13 @@
         return post_data;
     }
 
+    function finish() {
+        console.log("removing session variables.");
+        sessionStorage.removeItem("topic-data");
+        sessionStorage.removeItem("post-data");
+        sessionStorage.removeItem("job-data");
+    }
+
     function headerHTMLSimple(report_title) {
         var html;
         html = "<html><head><title>" + report_title + "</title>";
@@ -234,7 +241,7 @@
         html = html + "        'report_type': job_data.report_type, \n";
         html = html + "        'post_data': selected_posts \n";
         html = html + "    }; \n";
-        html = html + "    fetch('http://vortex.lan:8080/Raven/api/upload', {\n";
+        html = html + "    fetch('http://vortex:8080/Raven/api/upload', {\n";
         html = html + "        method: 'POST',\n";
         html = html + "        headers: {'Content-Type': 'application/json'},\n";
         html = html + "        body: JSON.stringify(export_data)\n";
@@ -288,9 +295,11 @@
                 } else {
                     console.error('Error during POST request: ', response.status);
                 }
+                finish();
             },
             onerror: function(response) {
                 console.error('Network error',response.status);
+                finish();
             }
         });
         w_report.document.close();
