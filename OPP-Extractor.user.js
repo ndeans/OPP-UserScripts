@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.9.1
+// @version      0.9.2
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/topic/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=onepoliticalplaza.com
-// @connect      vortex.lan
+// @connect      vortex
 // @grant        GM_xmlhttpRequest
 // @grant        GM.xmlHttpRequest
 // ==/UserScript==
@@ -279,7 +279,7 @@
         const api = (typeof GM_xmlhttpRequest !== 'undefined') ? GM_xmlhttpRequest : GM.xmlHttpRequest;
         api({
             method: 'POST',
-            url: 'http://vortex.lan:8080/Raven/api/upload',
+            url: 'http://vortex:8080/Raven/api/upload',
             data: JSON.stringify(export_data),
             headers: {'Content-Type': 'application/json'},
             onload: function(response) {
