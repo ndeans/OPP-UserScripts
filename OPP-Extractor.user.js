@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.9.4
+// @version      0.9.6
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/topic/*
@@ -37,11 +37,13 @@
 
     document.addEventListener('keydown', function(event) {
         if (event.keyCode == 113) {
+            event.preventDefault();
             console.log(">> EVENT : keyCode-113 (F2) : requesting extraction.");
             report_type = 1;
             initiateExtraction();
         }
         if (event.keyCode == 114) {
+            event.preventDefault();
             console.log(">> EVENT : keyCode-114 (F3) : requesting extraction.");
             report_type = 2;
             initiateExtraction();
@@ -173,7 +175,7 @@
     function printStandard() {
         var w_report = window.open("","report","");
         w_report.document.write("<html><head><title>Topic " + topic_data.id + "</title>");
-        w_report.document.write("<style>body{font-family:Verdana;font-size:10pt} .post_header{font-weight:bold;color:gray} .post_author{color:red}</style>");
+        w_report.document.write("<style>body{font-family:Verdana;font-size:10pt} .post_header{font-weight:bold;color:gray} .post_author{color:red} .post_body{margin-bottom:20px;} .quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}</style>");
         w_report.document.write("</head><body><h2>" + topic_data.id + ": " + topic_data.title + "</h2><hr>");
         
         post_data.forEach(function(post){
@@ -191,15 +193,24 @@
         overlay.id = 'opp-selector-overlay';
         overlay.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:10000; overflow-y:scroll; padding:20px; box-sizing:border-box; font-family:Verdana; font-size:10pt;';
         
-        let html = "<h2>Select Posts to Upload</h2><button id='btn-upload-selected' style='position:fixed; top:20px; right:40px; padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer; font-weight:bold;'>Upload Selected</button>";
-        html += "<button id='btn-close-overlay' style='position:fixed; top:20px; right:180px; padding:10px 20px; background:#f44336; color:white; border:none; cursor:pointer; font-weight:bold;'>Cancel</button><hr>";
+        const style = document.createElement('style');
+        style.innerHTML = ".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;} .post_author{color:red; font-weight:bold;} .post_header{color:gray;} hr{border:0; border-top:1px solid #ccc; margin:20px 0;}";
+        document.head.appendChild(style);
+
+        let html = `<h2>${topic_data.id}: ${topic_data.title}</h2>`;
+        html += "<div style='position:fixed; top:20px; right:40px; background:white; padding:10px; border:1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index:10001;'>";
+        html += "<button id='btn-upload-selected' style='padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer; font-weight:bold;'>Upload Selected</button>";
+        html += " <button id='btn-close-overlay' style='padding:10px 20px; background:#f44336; color:white; border:none; cursor:pointer; font-weight:bold;'>Cancel</button>";
+        html += "</div><hr style='margin-top:60px;'>";
         
         post_data.forEach((post, index) => {
-            html += `<div style='border-bottom:1px solid #ccc; padding:10px;'>
-                <input type='checkbox' class='post-selector' data-index='${index}' checked> 
-                <b>Post: ${post.id}</b> - <i>${post.head}</i> - <span style='color:red;'>${post.author}</span><br>
-                <div style='max-height:100px; overflow:hidden; opacity:0.7; font-size:9pt;'>${post.html}</div>
-            </div>`;
+            html += `<div class='post' style='padding:15px 10px;'>
+                <input type='checkbox' class='post-selector' data-index='${index}' checked style='transform: scale(1.5); margin-right:15px; vertical-align:middle;'> 
+                <span class='post_header'>
+                    <a href='${post.link}' target='_blank'>Post: ${post.id}</a> - <i>${post.head}</i> - <span class='post_author'>${post.author}</span>
+                </span>
+                <div class='post_body' style='margin-top:15px;'>${post.html}</div>
+            </div><hr>`;
         });
         
         overlay.innerHTML = html;
