@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.9.9
+// @version      0.9.10
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/topic/*
@@ -24,7 +24,7 @@
     var page_data = [];
     var post_data = [];
 
-    console.log("OPP-Extractor v0.9.9 initialized.");
+    console.log("OPP-Extractor v0.9.10 initialized.");
 
     if (document.readyState !== 'loading') {
         checkStatus();
@@ -79,7 +79,6 @@
     function extractFromPage() {
         data_fromUrl(window.location.href);
         
-        // Always try to load metadata from session
         var topicDataStr = sessionStorage.getItem("topic-data");
         var jobDataStr = sessionStorage.getItem("job-data");
         
@@ -97,16 +96,13 @@
             console.log("extractFromPage(): page 1 init complete. Total pages: " + topic_data.page_count);
         }
 
-        // Processing logic
         if (sessionStorage.getItem("post-data")) {
             post_data = JSON.parse(sessionStorage.getItem("post-data"));
         }
         
         processPage(document);
         sessionStorage.setItem("post-data", JSON.stringify(post_data));
-        console.log("extractFromPage(): page " + current_page + " processed. Posts: " + post_data.length);
         
-        // Navigation / Finish logic
         if (current_page < topic_data.page_count) {
             var new_page = (current_page + 1);
             let address = base_url + topic_number + "/" + new_page;
@@ -117,12 +113,8 @@
             console.log("extractFromPage(): finishing extraction.");
             export_data = {"topic_id":topic_data.id, "topic_title":topic_data.title, "report_type":job_data.report_type, "post_data":post_data};
 
-            if (report_type == 1) {
-                printStandard();
-            }
-            if (report_type == 2) {
-                showSelectiveUploadUI();
-            }
+            // Unify UI: Both F2 and F3 use the overlay now
+            showExtractionUI(report_type === 1); 
         }
     }
 
@@ -205,23 +197,7 @@
         sessionStorage.removeItem("job-data");
     }
 
-    function printStandard() {
-        var w_report = window.open("","report","");
-        w_report.document.write("<html><head><title>Topic " + topic_data.id + "</title>");
-        w_report.document.write("<style>body{font-family:Verdana;font-size:10pt} .post_header{font-weight:bold;color:gray} .post_author{color:red} .post_body{margin-bottom:20px;} .quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;}</style>");
-        w_report.document.write("</head><body><h2>" + topic_data.id + ": " + topic_data.title + "</h2><hr>");
-        
-        post_data.forEach(function(post){
-            w_report.document.write("<div class='post'><div class='post_header'><a href='" + post.link + "' target='_blank'>Post: " + post.id + "</a> - <i>" + post.head + "</i> - <span class='post_author'>" + post.author + "</span></div><br>");
-            w_report.document.write("<div class='post_body'>" + post.html + "</div></div><hr>");
-        });
-        w_report.document.write("</body></html>");
-        w_report.document.close();
-
-        uploadToRaven(export_data);
-    }
-
-    function showSelectiveUploadUI() {
+    function showExtractionUI(autoUpload) {
         const overlay = document.createElement('div');
         overlay.id = 'opp-selector-overlay';
         overlay.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:10000; overflow-y:scroll; padding:20px; box-sizing:border-box; font-family:Verdana; font-size:10pt;';
@@ -232,8 +208,8 @@
 
         let html = `<h2>${topic_data.id}: ${topic_data.title}</h2>`;
         html += "<div style='position:fixed; top:20px; right:40px; background:white; padding:10px; border:1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index:10001;'>";
-        html += "<button id='btn-upload-selected' style='padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer; font-weight:bold;'>Upload Selected</button>";
-        html += " <button id='btn-close-overlay' style='padding:10px 20px; background:#f44336; color:white; border:none; cursor:pointer; font-weight:bold;'>Cancel</button>";
+        html += `<button id='btn-upload-selected' style='padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer; font-weight:bold;'>${autoUpload ? 'Uploading...' : 'Upload Selected'}</button>`;
+        html += " <button id='btn-close-overlay' style='padding:10px 20px; background:#f44336; color:white; border:none; cursor:pointer; font-weight:bold;'>Close</button>";
         html += "</div><hr style='margin-top:60px;'>";
         
         post_data.forEach((post, index) => {
@@ -249,7 +225,7 @@
         overlay.innerHTML = html;
         document.body.appendChild(overlay);
 
-        document.getElementById('btn-upload-selected').addEventListener('click', () => {
+        const uploadAction = () => {
             const selectedIndices = Array.from(document.querySelectorAll('.post-selector:checked')).map(cb => parseInt(cb.dataset.index));
             const selectedPosts = selectedIndices.map(idx => post_data[idx]);
             
@@ -266,13 +242,19 @@
             };
 
             uploadToRaven(selective_export);
-            document.body.removeChild(overlay);
-        });
+        };
+
+        document.getElementById('btn-upload-selected').addEventListener('click', uploadAction);
 
         document.getElementById('btn-close-overlay').addEventListener('click', () => {
             document.body.removeChild(overlay);
             finish();
         });
+
+        if (autoUpload) {
+            console.log("F2 detected: Auto-triggering upload...");
+            uploadAction();
+        }
     }
 
     function uploadToRaven(data) {
