@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.9.10
+// @version      0.9.11
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/topic/*
@@ -15,16 +15,14 @@
     'use strict';
 
     var base_url = "https://www.onepoliticalplaza.com/topic/";
-    var report_type = 0;
     var topic_number = 0;
     var current_page = 0;
-    var job_data;
     var topic_data;
     var export_data;
     var page_data = [];
     var post_data = [];
 
-    console.log("OPP-Extractor v0.9.10 initialized.");
+    console.log("OPP-Extractor v0.9.11 initialized.");
 
     if (document.readyState !== 'loading') {
         checkStatus();
@@ -39,13 +37,6 @@
         if (event.keyCode == 113) {
             event.preventDefault();
             console.log(">> EVENT : keyCode-113 (F2) : requesting extraction.");
-            report_type = 1;
-            initiateExtraction();
-        }
-        if (event.keyCode == 114) {
-            event.preventDefault();
-            console.log(">> EVENT : keyCode-114 (F3) : requesting extraction.");
-            report_type = 2;
             initiateExtraction();
         }
     });
@@ -66,10 +57,7 @@
         topic_data = {"id":topic_number, "title":"", "page_count":0};
         sessionStorage.setItem("topic-data", JSON.stringify(topic_data));
 
-        job_data = {"topic-id":topic_number, "report_type":report_type};
-        sessionStorage.setItem("job-data", JSON.stringify(job_data));
-
-        console.log("initiateExtraction(): topic " + topic_number + ", report " + report_type);
+        console.log("initiateExtraction(): topic " + topic_number);
         let address = base_url + topic_number + "/1";
         
         window.name = "site";
@@ -80,13 +68,9 @@
         data_fromUrl(window.location.href);
         
         var topicDataStr = sessionStorage.getItem("topic-data");
-        var jobDataStr = sessionStorage.getItem("job-data");
-        
-        if (!topicDataStr || !jobDataStr) return;
+        if (!topicDataStr) return;
         
         topic_data = JSON.parse(topicDataStr);
-        job_data = JSON.parse(jobDataStr);
-        report_type = job_data.report_type;
 
         if (current_page == 1) {
             page_data = data_fromPage(document);
@@ -111,10 +95,7 @@
         }
         else {
             console.log("extractFromPage(): finishing extraction.");
-            export_data = {"topic_id":topic_data.id, "topic_title":topic_data.title, "report_type":job_data.report_type, "post_data":post_data};
-
-            // Unify UI: Both F2 and F3 use the overlay now
-            showExtractionUI(report_type === 1); 
+            showExtractionUI(); 
         }
     }
 
@@ -197,20 +178,21 @@
         sessionStorage.removeItem("job-data");
     }
 
-    function showExtractionUI(autoUpload) {
+    function showExtractionUI() {
         const overlay = document.createElement('div');
         overlay.id = 'opp-selector-overlay';
         overlay.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:10000; overflow-y:scroll; padding:20px; box-sizing:border-box; font-family:Verdana; font-size:10pt;';
         
         const style = document.createElement('style');
-        style.innerHTML = ".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;} .post_author{color:red; font-weight:bold;} .post_header{color:gray;} hr{border:0; border-top:1px solid #ccc; margin:20px 0;}";
+        style.innerHTML = ".quote_colors{border-color: #5ba5cb; background-color: #a4ceeb3d;} .post_author{color:red; font-weight:bold;} .post_header{color:gray;} hr{border:0; border-top:1px solid #ccc; margin:20px 0;} .bulk-select{margin: 10px 0; color: #555;} .bulk-select span{text-decoration: underline; cursor: pointer; color: blue; margin-right: 15px;}";
         document.head.appendChild(style);
 
         let html = `<h2>${topic_data.id}: ${topic_data.title}</h2>`;
+        html += `<div class='bulk-select'>Bulk Select: <span id='sel-all'>All</span> <span id='sel-none'>None</span></div>`;
         html += "<div style='position:fixed; top:20px; right:40px; background:white; padding:10px; border:1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index:10001;'>";
-        html += `<button id='btn-upload-selected' style='padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer; font-weight:bold;'>${autoUpload ? 'Uploading...' : 'Upload Selected'}</button>`;
+        html += `<button id='btn-upload-selected' style='padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer; font-weight:bold;'>Upload Selected</button>`;
         html += " <button id='btn-close-overlay' style='padding:10px 20px; background:#f44336; color:white; border:none; cursor:pointer; font-weight:bold;'>Close</button>";
-        html += "</div><hr style='margin-top:60px;'>";
+        html += "</div><hr style='margin-top:20px;'>";
         
         post_data.forEach((post, index) => {
             html += `<div class='post' style='padding:15px 10px;'>
@@ -225,7 +207,15 @@
         overlay.innerHTML = html;
         document.body.appendChild(overlay);
 
-        const uploadAction = () => {
+        document.getElementById('sel-all').addEventListener('click', () => {
+            document.querySelectorAll('.post-selector').forEach(cb => cb.checked = true);
+        });
+
+        document.getElementById('sel-none').addEventListener('click', () => {
+            document.querySelectorAll('.post-selector').forEach(cb => cb.checked = false);
+        });
+
+        document.getElementById('btn-upload-selected').addEventListener('click', () => {
             const selectedIndices = Array.from(document.querySelectorAll('.post-selector:checked')).map(cb => parseInt(cb.dataset.index));
             const selectedPosts = selectedIndices.map(idx => post_data[idx]);
             
@@ -234,27 +224,20 @@
                 return;
             }
 
-            const selective_export = {
+            const export_obj = {
                 "topic_id": topic_data.id,
                 "topic_title": topic_data.title,
-                "report_type": report_type,
+                "report_type": 1, 
                 "post_data": selectedPosts
             };
 
-            uploadToRaven(selective_export);
-        };
-
-        document.getElementById('btn-upload-selected').addEventListener('click', uploadAction);
+            uploadToRaven(export_obj);
+        });
 
         document.getElementById('btn-close-overlay').addEventListener('click', () => {
             document.body.removeChild(overlay);
             finish();
         });
-
-        if (autoUpload) {
-            console.log("F2 detected: Auto-triggering upload...");
-            uploadAction();
-        }
     }
 
     function uploadToRaven(data) {
@@ -266,7 +249,7 @@
             headers: {'Content-Type': 'application/json'},
             onload: function(response) {
                 if (response.status >= 200 && response.status < 400) {
-                    alert('Upload successful!');
+                    alert('Upload successful! (' + data.post_data.length + ' posts)');
                 } else {
                     alert('Upload failed: ' + response.status);
                 }
