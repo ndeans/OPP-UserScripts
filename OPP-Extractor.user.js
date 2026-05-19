@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OPP-Extractor
 // @namespace    http://deans.us/
-// @version      0.9.11
+// @version      0.9.12
 // @description  script to prepare entire topic for export to file.
 // @author       Nigel Deans
 // @match        https://www.onepoliticalplaza.com/topic/*
@@ -22,7 +22,7 @@
     var page_data = [];
     var post_data = [];
 
-    console.log("OPP-Extractor v0.9.11 initialized.");
+    console.log("OPP-Extractor v0.9.12 initialized.");
 
     if (document.readyState !== 'loading') {
         checkStatus();
@@ -156,6 +156,12 @@
                 var post_content = post_collection[j].getElementsByTagName('div')[2].innerHTML;
                 var post_blocks = post_collection[j].getElementsByTagName('div')[2].childNodes;
 
+                Array.from(post_collection[j].children).forEach(function(child) {
+                    if (child.style.textAlign === 'center' && child.querySelector('img[style*="max-width"]')) {
+                        post_content += child.outerHTML;
+                    }
+                });
+
                 for (var k=0; k < post_blocks.length; k++ ) {
                     if(post_blocks[k].nodeType == Node.TEXT_NODE) {
                         post_text = post_text + "<br>" + post_blocks[k].nodeValue;
@@ -262,12 +268,17 @@
         });
     }
 
+    function getTopicNumber() { return topic_number; }
+    function getCurrentPage() { return current_page; }
+
     // Export for testing
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
             data_fromUrl: data_fromUrl,
             data_fromPage: data_fromPage,
-            processPage: processPage
+            processPage: processPage,
+            getTopicNumber: getTopicNumber,
+            getCurrentPage: getCurrentPage
         };
     }
 

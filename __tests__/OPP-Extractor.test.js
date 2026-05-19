@@ -74,10 +74,12 @@ describe("OPP-Extractor Post Data Extraction", () => {
                 <span>March 9, 2026</span>
             </div>
             <div class="contentlook">
-                <a href="/user/456">AuthorName</a>
-                <div></div>
-                <div class="post_body_container">
-                    <div>Actual Post Content</div>
+                <div style="color:#333333;">
+                    <a href="/user/456">AuthorName</a>
+                </div>
+                <div class="smalltext">&nbsp;</div>
+                <div style="line-height:1.5em;">
+                    Actual Post Content
                     Text Node 1
                     <br>
                     Text Node 2
@@ -85,12 +87,8 @@ describe("OPP-Extractor Post Data Extraction", () => {
             </div>
         `;
 
-        // The script expects:
-        // meta_collection[i].getElementsByTagName('span')[0].innerText for post_time
-        // meta_collection[i].getElementsByTagName('a')[0].href for post_link
-        // post_collection[j].getElementsByTagName('a')[0].innerText for post_author
-        // post_collection[j].getElementsByTagName('div')[2].innerHTML for post_content
-        // post_collection[j].getElementsByTagName('div')[2].childNodes for post_text extraction
+        // Structure mirrors actual OPP contentlook:
+        // div[0] = author header, div[1] = spacer, div[2] = post body
 
         const results = processPage(document);
 
@@ -102,6 +100,66 @@ describe("OPP-Extractor Post Data Extraction", () => {
         expect(results[0].html).toContain("Actual Post Content");
         expect(results[0].text).toContain("Text Node 1");
         expect(results[0].text).toContain("Text Node 2");
+    });
+});
+
+describe("OPP-Extractor Pasted Image Extraction", () => {
+    let processPage;
+
+    beforeAll(() => {
+        jest.resetModules();
+        processPage = require("../OPP-Extractor.user.js").processPage;
+    });
+
+    test("should append pasted image div HTML to the post html field", () => {
+        document.body.innerHTML = `
+            <div class="contentlookseparator" id="post789">
+                <a href="https://www.onepoliticalplaza.com/t-99999-1#789"></a>
+                <span>May 18, 2026</span>
+            </div>
+            <div class="contentlook">
+                <a href="/user/111">MemeAuthor</a>
+                <div></div>
+                <div class="post_body_container">
+                    <div></div>
+                </div>
+                <div style="text-align:center; overflow-wrap:break-word;">
+                    <br>
+                    <img src="https://static.onepoliticalplaza.com/upload/2024/1/1/test-meme.jpg" alt="" style="max-width:100%; max-height:850px;">
+                    <br>
+                </div>
+            </div>
+        `;
+
+        const results = processPage(document);
+        const post = results[results.length - 1];
+
+        expect(post.id).toBe("post789");
+        expect(post.html).toContain("test-meme.jpg");
+    });
+
+    test("should not include avatar images or non-image centered divs", () => {
+        document.body.innerHTML = `
+            <div class="contentlookseparator" id="post790">
+                <a href="https://www.onepoliticalplaza.com/t-99999-1#790"></a>
+                <span>May 18, 2026</span>
+            </div>
+            <div class="contentlook">
+                <div style="color:#333333;">
+                    <img src="https://static.onepoliticalplaza.com/avatars/avatar.jpg" alt="" class="avatar_responsive_width_topic" style="float:left; margin-right:1%;">
+                    <a href="/user-profile?usernum=123" class="tdn vsc">SomeAuthor</a>
+                </div>
+                <div class="smalltext" style="clear:both;">&nbsp;</div>
+                <div style="line-height:1.5em; margin-top:1%; overflow-wrap:break-word;">Just some text, no meme.</div>
+                <div class="postsigtext">SomeAuthor</div>
+            </div>
+        `;
+
+        const results = processPage(document);
+        const post = results[results.length - 1];
+
+        expect(post.id).toBe("post790");
+        expect(post.html).not.toContain("avatar.jpg");
     });
 });
 

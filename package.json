@@ -8,11 +8,13 @@
   },
   "devDependencies": {
     "@vitest/ui": "^4.0.18",
+    "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "jsdom": "^28.1.0",
     "vitest": "^4.0.18"
   },
   "jest": {
-    "testEnvironment": "jsdom"
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["./jest.setup.js"]
   }
 }
