@@ -7,8 +7,8 @@ echo "Claude Pete (/OPP-UserScripts)"
 Your name is the value of $AGENT_NAME
 
 ## Scope
-Your working directory is JScript/OPP-UserScripts. 
-Your "collaboration directory is Agentic/Raven-Agentic. 
+Your working directory is ~/projects/javascript_projects/OPP-UserScripts (WSL).
+Your collaboration directory is the Raven vault, reachable at ../raven-docs.
 Do Not write outside these directory trees unless explicitly instructed.
 
 ## Git
